@@ -1,0 +1,80 @@
+# ローカルで動きを確かめるための構成。MySQL はパスワード無しの root で動かすので、外部には公開しない。
+x-app: &app
+  # 全サービスで同じイメージを使い、一部だけ古いバイナリで動くことを防ぐ。
+  image: event-streaming-valkey:local
+  build: .
+  restart: unless-stopped
+  depends_on:
+    mysql:
+      condition: service_healthy
+    valkey:
+      condition: service_healthy
+
+x-env: &env
+  MYSQL_DSN: root@tcp(mysql:3306)/events?parseTime=true&loc=UTC
+  VALKEY_ADDR: valkey:6379
+  TOPIC: orders
+  PARTITIONS: "3"
+  RETRY_DELAY: 1s
+  MAX_ATTEMPTS: "60"
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: events
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 2s
+      retries: 30
+
+  valkey:
+    image: valkey/valkey:9.1
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      retries: 30
+
+  api:
+    <<: *app
+    command: ["/app/api"]
+    environment:
+      <<: *env
+    ports:
+      - "127.0.0.1:8080:8080"
+
+  relay:
+    <<: *app
+    command: ["/app/relay"]
+    environment:
+      <<: *env
+
+  inventory:
+    <<: *app
+    command: ["/app/consumer"]
+    environment:
+      <<: *env
+      HANDLER: inventory
+      CONSUMER: inventory-1
+
+  sales:
+    <<: *app
+    command: ["/app/consumer"]
+    environment:
+      <<: *env
+      HANDLER: sales
+      CONSUMER: sales-1
+
+  # 後から加わる読み手。新しいグループ名でストリームの先頭から読み直し、売上集計を作り直す。
+  sales-replay:
+    <<: *app
+    profiles: ["replay"]
+    command: ["/app/consumer"]
+    environment:
+      <<: *env
+      HANDLER: sales
+      GROUP: sales-replay
+      START: "0"

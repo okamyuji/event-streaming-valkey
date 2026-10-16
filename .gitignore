@@ -1,0 +1,4 @@
+/bin/
+/coverage.out
+/gremlins.json
+.DS_Store
