@@ -2,6 +2,8 @@ module github.com/okamyuji/event-streaming-valkey
 
 go 1.27.0
 
+toolchain go1.27.2
+
 require (
 	github.com/go-sql-driver/mysql v1.10.1
 	github.com/testcontainers/testcontainers-go/modules/mysql v0.44.0
