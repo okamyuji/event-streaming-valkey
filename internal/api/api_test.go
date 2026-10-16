@@ -86,6 +86,7 @@ func TestPOSTordersは不正な入力に400を返し保存しない(t *testing.T
 		"型が違う":       `{"product_id":"apple","quantity":"1","amount":300}`,
 		"上限を超える大きさ":  `{"product_id":"` + strings.Repeat("a", 2<<10) + `","quantity":1,"amount":1}`,
 		"末尾に余計な値がある": `{"product_id":"apple","quantity":1,"amount":300} {}`,
+		"金額が上限を超える":  `{"product_id":"apple","quantity":1,"amount":9223372036854775807}`,
 	}
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -234,5 +235,30 @@ func Test正常に応答できたときはエラーをログに出さない(t *t
 
 	if rec.Code != http.StatusOK || buf.Len() != 0 {
 		t.Fatalf("ログは空のはずが %d %q", rec.Code, buf.String())
+	}
+}
+
+func Test別オリジンのブラウザからの書き込みは拒み読み出しは通す(t *testing.T) {
+	cases := []struct {
+		method, path, body string
+		want               int
+	}{
+		{http.MethodPost, "/orders", `{"product_id":"apple","quantity":1,"amount":100}`, http.StatusForbidden},
+		{http.MethodPost, "/orders/order-9/cancel", "", http.StatusForbidden},
+		{http.MethodGet, "/stock", "", http.StatusOK},
+	}
+	for _, c := range cases {
+		t.Run(c.method+" "+c.path, func(t *testing.T) {
+			s := &fakeStore{}
+			req := httptest.NewRequestWithContext(t.Context(), c.method, c.path, strings.NewReader(c.body))
+			req.Header.Set("Sec-Fetch-Site", "cross-site")
+			rec := httptest.NewRecorder()
+
+			api.Handler{Store: s}.Routes().ServeHTTP(rec, req)
+
+			if rec.Code != c.want || len(s.orders)+len(s.cancelled) != 0 {
+				t.Fatalf("%d のはずが %d（保存 %d件）", c.want, rec.Code, len(s.orders)+len(s.cancelled))
+			}
+		})
 	}
 }

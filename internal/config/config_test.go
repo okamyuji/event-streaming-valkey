@@ -18,11 +18,12 @@ func TestLoadは未設定の項目に既定値を入れる(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := config.Config{
-		MySQLDSN: "dsn", ValkeyAddr: "localhost:6379", HTTPAddr: ":8080",
+		MySQLDSN: "dsn", ValkeyAddr: "localhost:6379", HTTPAddr: "127.0.0.1:8080",
 		Topic: "orders", Partitions: 3, MaxLen: 10000,
 		Handler: "inventory", Group: "inventory", Consumer: "inventory-1", Start: "0",
 		MaxAttempts: 3, RetryDelay: time.Second,
 		ReadBlock: 2 * time.Second, ReadHeaderTimeout: 5 * time.Second, ShutdownTimeout: 10 * time.Second,
+		ReadTimeout: 10 * time.Second, IdleTimeout: time.Minute,
 	}
 	if c != want {
 		t.Fatalf("\n got=%+v\nwant=%+v", c, want)
@@ -46,6 +47,7 @@ func TestLoadは指定された値を使いグループ名の既定は読み手�
 		Handler: "sales", Group: "sales", Consumer: "sales-2", Start: "$",
 		MaxAttempts: 1, RetryDelay: time.Second,
 		ReadBlock: 2 * time.Second, ReadHeaderTimeout: 5 * time.Second, ShutdownTimeout: 10 * time.Second,
+		ReadTimeout: 10 * time.Second, IdleTimeout: time.Minute,
 	}
 	if c != want {
 		t.Fatalf("\n got=%+v\nwant=%+v", c, want)

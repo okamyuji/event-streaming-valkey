@@ -82,9 +82,15 @@ func (v *Valkey) Ack(ctx context.Context, stream, group, id string) error {
 
 // DeadLetter 処理できないエントリを、元の場所と理由を添えて退避用ストリームへ書く。
 func (v *Valkey) DeadLetter(ctx context.Context, dlq, source string, m Message, reason string) error {
-	fv := v.c.B().Xadd().Key(dlq).Id("*").FieldValue().
-		FieldValue("source_stream", source).FieldValue("source_id", m.ID).FieldValue("reason", reason)
+	meta := map[string]string{"source_stream": source, "source_id": m.ID, "reason": reason}
+	fv := v.c.B().Xadd().Key(dlq).Maxlen().Almost().Threshold(v.maxLen).Id("*").FieldValue()
 	for k, val := range m.Fields {
+		// 元のエントリに同じ名前があっても、退避の情報を上書きさせない。
+		if _, reserved := meta[k]; !reserved {
+			fv = fv.FieldValue(k, val)
+		}
+	}
+	for k, val := range meta {
 		fv = fv.FieldValue(k, val)
 	}
 	return v.c.Do(ctx, fv.Build()).Error()

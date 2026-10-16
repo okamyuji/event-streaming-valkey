@@ -52,6 +52,8 @@ func API(ctx context.Context, cfg config.Config) error {
 		Addr:              cfg.HTTPAddr,
 		Handler:           api.Handler{Store: mysqlstore.New(db)}.Routes(),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+		ReadTimeout:       cfg.ReadTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
 	}
 	failed := make(chan error, 1)
 	go func() { failed <- srv.ListenAndServe() }()

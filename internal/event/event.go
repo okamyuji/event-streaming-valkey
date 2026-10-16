@@ -16,6 +16,17 @@ const (
 	TypeOrderCancelled = "OrderCancelled"
 )
 
+// 上限は MySQL の列の大きさと、集計の BIGINT が溢れない範囲から決めている。
+const (
+	maxEventIDLen   = 36
+	maxOrderIDLen   = 36
+	maxProductIDLen = 64
+	// MaxQuantity 1件の注文で受け付ける数量の上限。
+	MaxQuantity = 1_000_000
+	// MaxAmount 1件の注文で受け付ける金額の上限。
+	MaxAmount = 1_000_000_000_000
+)
+
 // ErrMalformed 何度処理し直しても成功しない、形の壊れたイベントを表す。
 var ErrMalformed = errors.New("malformed event")
 
@@ -48,6 +59,9 @@ func FromFields(f map[string]string) (Envelope, error) {
 			return Envelope{}, fmt.Errorf("%w: %s がない", ErrMalformed, k)
 		}
 	}
+	if len(f["event_id"]) > maxEventIDLen {
+		return Envelope{}, fmt.Errorf("%w: event_id は%dバイト以内", ErrMalformed, maxEventIDLen)
+	}
 	at, err := time.Parse(time.RFC3339Nano, f["occurred_at"])
 	if err != nil {
 		return Envelope{}, fmt.Errorf("%w: occurred_at: %v", ErrMalformed, err)
@@ -65,17 +79,17 @@ type Order struct {
 
 // Validate 読み手が処理できない注文を ErrMalformed として返す。
 func (o Order) Validate() error {
-	if o.OrderID == "" {
-		return fmt.Errorf("%w: order_id が空", ErrMalformed)
+	if o.OrderID == "" || len(o.OrderID) > maxOrderIDLen {
+		return fmt.Errorf("%w: order_id は1〜%dバイト", ErrMalformed, maxOrderIDLen)
 	}
-	if o.ProductID == "" {
-		return fmt.Errorf("%w: product_id が空", ErrMalformed)
+	if o.ProductID == "" || len(o.ProductID) > maxProductIDLen {
+		return fmt.Errorf("%w: product_id は1〜%dバイト", ErrMalformed, maxProductIDLen)
 	}
-	if o.Quantity <= 0 {
-		return fmt.Errorf("%w: quantity は1以上", ErrMalformed)
+	if o.Quantity <= 0 || o.Quantity > MaxQuantity {
+		return fmt.Errorf("%w: quantity は1〜%d", ErrMalformed, MaxQuantity)
 	}
-	if o.Amount < 0 {
-		return fmt.Errorf("%w: amount は0以上", ErrMalformed)
+	if o.Amount < 0 || o.Amount > MaxAmount {
+		return fmt.Errorf("%w: amount は0〜%d", ErrMalformed, MaxAmount)
 	}
 	return nil
 }

@@ -57,6 +57,7 @@ make down    # 止めてボリュームも消す
 | --- | --- | --- |
 | `MYSQL_DSN` | なし（必須） | MySQLの接続先 |
 | `VALKEY_ADDR` | `localhost:6379` | Valkeyの接続先 |
+| `HTTP_ADDR` | `127.0.0.1:8080` | apiの待ち受け先。composeでは`:8080`を渡し、公開先を`127.0.0.1`に絞る |
 | `TOPIC` | `orders` | ストリーム名の接頭辞 |
 | `PARTITIONS` | `3` | パーティション数。運用を始めたら変えません |
 | `STREAM_MAXLEN` | `10000` | 1パーティションに残すおおよその件数 |

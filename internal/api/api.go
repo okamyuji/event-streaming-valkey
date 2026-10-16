@@ -51,7 +51,8 @@ func (h Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /stock", h.stock)
 	mux.HandleFunc("GET /sales", h.sales)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-	return mux
+	// 別のサイトを開いたブラウザから、注文の作成や取消を送らせないようにする。
+	return http.NewCrossOriginProtection().Handler(mux)
 }
 
 func (h Handler) placeOrder(w http.ResponseWriter, r *http.Request) {

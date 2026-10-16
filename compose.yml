@@ -43,6 +43,8 @@ services:
     command: ["/app/api"]
     environment:
       <<: *env
+      # コンテナの中では全インタフェースで待ち受け、公開先は ports で 127.0.0.1 に絞る。
+      HTTP_ADDR: ":8080"
     ports:
       - "127.0.0.1:8080:8080"
 

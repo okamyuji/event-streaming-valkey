@@ -2,6 +2,7 @@ package event_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,6 +41,19 @@ func TestFromFieldsは必須項目が欠けるとErrMalformedを返す(t *testin
 				t.Fatalf("ErrMalformed のはずが %v", err)
 			}
 		})
+	}
+}
+
+func TestFromFieldsは処理済みの記録に入らない長さのイベントIDをErrMalformedにする(t *testing.T) {
+	cases := map[int]bool{36: true, 37: false}
+	for n, ok := range cases {
+		f := event.Envelope{ID: strings.Repeat("e", n), Type: "T", Key: "k", OccurredAt: time.Now(), Payload: []byte("{}")}.Fields()
+
+		_, err := event.FromFields(f)
+
+		if ok != (err == nil) || (!ok && !errors.Is(err, event.ErrMalformed)) {
+			t.Fatalf("%dバイトのIDで err=%v", n, err)
+		}
 	}
 }
 
@@ -98,6 +112,14 @@ func TestOrderPlacedのValidateは境界値を判定する(t *testing.T) {
 		{"金額マイナス", func(o *event.Order) { o.Amount = -1 }, false},
 		{"注文IDが空", func(o *event.Order) { o.OrderID = "" }, false},
 		{"商品IDが空", func(o *event.Order) { o.ProductID = "" }, false},
+		{"注文IDが36バイト", func(o *event.Order) { o.OrderID = strings.Repeat("o", 36) }, true},
+		{"注文IDが37バイト", func(o *event.Order) { o.OrderID = strings.Repeat("o", 37) }, false},
+		{"商品IDが64バイト", func(o *event.Order) { o.ProductID = strings.Repeat("p", 64) }, true},
+		{"商品IDが65バイト", func(o *event.Order) { o.ProductID = strings.Repeat("p", 65) }, false},
+		{"数量が上限ちょうど", func(o *event.Order) { o.Quantity = event.MaxQuantity }, true},
+		{"数量が上限を1超える", func(o *event.Order) { o.Quantity = event.MaxQuantity + 1 }, false},
+		{"金額が上限ちょうど", func(o *event.Order) { o.Amount = event.MaxAmount }, true},
+		{"金額が上限を1超える", func(o *event.Order) { o.Amount = event.MaxAmount + 1 }, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

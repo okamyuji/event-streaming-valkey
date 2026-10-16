@@ -30,7 +30,10 @@ type Config struct {
 	// ReadBlock 新着が無いときに1回の読み込みで待つ時間。
 	ReadBlock         time.Duration
 	ReadHeaderTimeout time.Duration
-	ShutdownTimeout   time.Duration
+	// ReadTimeout 本文を少しずつ送り続ける接続を切るための、要求全体の読み込み時間の上限。
+	ReadTimeout     time.Duration
+	IdleTimeout     time.Duration
+	ShutdownTimeout time.Duration
 }
 
 // Load getenv から設定を読み、不正な値はまとめてエラーにする。
@@ -40,7 +43,7 @@ func Load(getenv func(string) string) (Config, error) {
 	c := Config{
 		MySQLDSN:   getenv("MYSQL_DSN"),
 		ValkeyAddr: cmp.Or(getenv("VALKEY_ADDR"), "localhost:6379"),
-		HTTPAddr:   cmp.Or(getenv("HTTP_ADDR"), ":8080"),
+		HTTPAddr:   cmp.Or(getenv("HTTP_ADDR"), "127.0.0.1:8080"),
 		Topic:      cmp.Or(getenv("TOPIC"), "orders"),
 		Handler:    handler,
 		Group:      group,
@@ -49,6 +52,8 @@ func Load(getenv func(string) string) (Config, error) {
 
 		ReadBlock:         2 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		IdleTimeout:       time.Minute,
 		ShutdownTimeout:   10 * time.Second,
 	}
 	partitions, perr := positive(getenv, "PARTITIONS", 3)

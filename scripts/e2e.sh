@@ -49,6 +49,12 @@ docker compose up -d --build --wait mysql valkey
 docker compose up -d --build api relay inventory sales
 eventually "api の healthz" 200 curl -s -o /dev/null -w '%{http_code}' "$API/healthz"
 
+step "別のサイトを開いたブラウザからの書き込みと、上限を超える注文は受け付けない"
+eventually "別オリジンからの POST" 403 curl -s -o /dev/null -w '%{http_code}' -X POST "$API/orders" \
+  -H 'Sec-Fetch-Site: cross-site' -d '{"product_id":"apple","quantity":1,"amount":100}'
+eventually "上限を超える金額" 400 curl -s -o /dev/null -w '%{http_code}' -X POST "$API/orders" \
+  -d '{"product_id":"apple","quantity":1,"amount":9223372036854775807}'
+
 step "注文6件を2つの読み手がそれぞれ集計する"
 for _ in 1 2 3; do
   order apple 1 100

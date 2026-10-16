@@ -215,6 +215,36 @@ func TestDeadLetterは元の場所と理由を付けて別ストリームに書�
 	}
 }
 
+func TestDeadLetterは元のフィールドに同じ名前があっても退避の情報を上書きさせない(t *testing.T) {
+	v, client := newValkey(t, 1000)
+	ctx := t.Context()
+	m := stream.Message{ID: "5-0", Fields: map[string]string{"reason": "偽の理由", "source_id": "9-9", "payload": "{"}}
+
+	must(t, v.DeadLetter(ctx, "orders.dlq", "orders.p0", m, "本当の理由"))
+
+	entries, err := client.Do(ctx, client.B().Xrange().Key("orders.dlq").Start("-").End("+").Build()).AsXRange()
+	must(t, err)
+	f := entries[0].FieldValues
+	if f["reason"] != "本当の理由" || f["source_id"] != "5-0" || f["payload"] != "{" {
+		t.Fatalf("退避の情報が上書きされた: %+v", f)
+	}
+}
+
+func TestDeadLetterもMAXLENで古いエントリを捨てる(t *testing.T) {
+	v, client := newValkey(t, 100)
+	ctx := t.Context()
+
+	for i := range 500 {
+		must(t, v.DeadLetter(ctx, "orders.dlq", "orders.p0", stream.Message{ID: strconv.Itoa(i) + "-0"}, "x"))
+	}
+
+	n, err := client.Do(ctx, client.B().Xlen().Key("orders.dlq").Build()).AsInt64()
+	must(t, err)
+	if n < 100 || n > 200 {
+		t.Fatalf("MAXLEN ~ 100 なら100〜200件のはずが %d 件", n)
+	}
+}
+
 func TestPublishはMAXLENで古いイベントを捨てる(t *testing.T) {
 	// "~" 付きの削除は内部ノード単位（既定100件）で行うので、件数は上限ちょうどにはならない。
 	v, client := newValkey(t, 100)
