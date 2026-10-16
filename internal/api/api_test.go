@@ -262,3 +262,30 @@ func Test別オリジンのブラウザからの書き込みは拒み読み出�
 		})
 	}
 }
+
+func TestLoopbackOnlyはHostがループバックの要求だけを通す(t *testing.T) {
+	cases := map[string]int{
+		"127.0.0.1:8080":            http.StatusOK,
+		"localhost:8080":            http.StatusOK,
+		"[::1]:8080":                http.StatusOK,
+		"localhost":                 http.StatusOK,
+		"evil.example:8080":         http.StatusForbidden,
+		"127.0.0.1.evil.example":    http.StatusForbidden,
+		"localhost.evil.example:80": http.StatusForbidden,
+	}
+	for host, want := range cases {
+		t.Run(host, func(t *testing.T) {
+			called := false
+			h := api.LoopbackOnly(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/stock", nil)
+			req.Host = host
+			rec := httptest.NewRecorder()
+
+			h.ServeHTTP(rec, req)
+
+			if rec.Code != want || called != (want == http.StatusOK) {
+				t.Fatalf("%d のはずが %d（通過=%v）", want, rec.Code, called)
+			}
+		})
+	}
+}

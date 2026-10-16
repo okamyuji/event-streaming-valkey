@@ -50,7 +50,7 @@ func API(ctx context.Context, cfg config.Config) error {
 	defer func() { _ = db.Close() }()
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           api.Handler{Store: mysqlstore.New(db)}.Routes(),
+		Handler:           api.LoopbackOnly(api.Handler{Store: mysqlstore.New(db)}.Routes()),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
 		IdleTimeout:       cfg.IdleTimeout,

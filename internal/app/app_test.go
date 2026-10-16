@@ -261,3 +261,27 @@ func Test接続できないときは起動せずエラーを返す(t *testing.T)
 		}
 	}
 }
+
+func TestAPIはループバック以外のHostを拒む(t *testing.T) {
+	cfg, _, _ := fixture(t)
+	stop := start(t, app.API, cfg)
+	eventually(t, "healthz が200", func() bool {
+		r, err := http.Get("http://" + cfg.HTTPAddr + "/healthz")
+		if err == nil {
+			_ = r.Body.Close()
+		}
+		return err == nil && r.StatusCode == http.StatusOK
+	})
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+cfg.HTTPAddr+"/stock", nil)
+	must(t, err)
+	req.Host = "evil.example"
+
+	res, err := http.DefaultClient.Do(req)
+	must(t, err)
+	_ = res.Body.Close()
+
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("403のはずが %d", res.StatusCode)
+	}
+	must(t, stop())
+}

@@ -6,6 +6,7 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 	"uuid"
@@ -111,6 +112,22 @@ func (h Handler) sales(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.writeJSON(w, http.StatusOK, v)
+}
+
+// LoopbackOnly Host がループバックを指す要求だけを通す。
+// 別のサイトが自分のドメイン名の向き先を 127.0.0.1 に付け替えると、ブラウザは同じオリジンとして要求を送ってくるため、Host で見分ける。
+func LoopbackOnly(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host, _, err := net.SplitHostPort(r.Host)
+		if err != nil {
+			host = r.Host
+		}
+		if host != "localhost" && !net.ParseIP(host).IsLoopback() {
+			http.Error(w, "このホスト名では受け付けません", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // fail 原因はログにだけ残し、利用者には中身を見せない。

@@ -16,7 +16,7 @@ const (
 	TypeOrderCancelled = "OrderCancelled"
 )
 
-// 上限は MySQL の列の大きさと、集計の BIGINT が溢れない範囲から決めている。
+// 上限は1件の値が MySQL の列に収まる範囲から決めている。累計の溢れは集計の更新がエラーにし、読み手が DLQ へ退避する。
 const (
 	maxEventIDLen   = 36
 	maxOrderIDLen   = 36
