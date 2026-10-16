@@ -60,7 +60,7 @@ func Load(getenv func(string) string) (Config, error) {
 	maxLen, lerr := positive(getenv, "STREAM_MAXLEN", 10000)
 	maxAttempts, aerr := positive(getenv, "MAX_ATTEMPTS", 3)
 	retryDelay, rerr := duration(getenv, "RETRY_DELAY", time.Second)
-	c.Partitions, c.MaxLen, c.MaxAttempts, c.RetryDelay = int(partitions), maxLen, int(maxAttempts), retryDelay
+	c.Partitions, c.MaxLen, c.MaxAttempts, c.RetryDelay = partitions, int64(maxLen), maxAttempts, retryDelay
 	err := errors.Join(perr, lerr, aerr, rerr, c.check())
 	return c, err
 }
@@ -79,12 +79,12 @@ func (c Config) check() error {
 	return errors.Join(errs...)
 }
 
-func positive(getenv func(string) string, key string, def int64) (int64, error) {
+func positive(getenv func(string) string, key string, def int) (int, error) {
 	s := getenv(key)
 	if s == "" {
 		return def, nil
 	}
-	n, err := strconv.ParseInt(s, 10, 64)
+	n, err := strconv.Atoi(s)
 	if err != nil || n < 1 {
 		return 0, fmt.Errorf("%s は1以上の整数: %q", key, s)
 	}
