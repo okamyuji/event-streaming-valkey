@@ -8,9 +8,10 @@ GREMLINS="${GREMLINS:-go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.5.1
 OUT=gremlins.json
 
 # テスト側で締め切りを設けているので、gremlins の時間切れには余裕を持たせて KILLED として数えさせる。
-# 並列だと各ワーカーが同時に testcontainers を起動し、混んだランナーで時間切れになるため直列にする。
+# gremlins は最初のカバレッジ計測の時間を時間切れの基準にする。テスト結果のキャッシュが当たると
+# 基準が1秒未満になり、testcontainers を起動するテストが時間切れになるため、キャッシュを使わせない。
 # shellcheck disable=SC2086
-$GREMLINS unleash --workers 1 --timeout-coefficient 10 -o "$OUT" .
+GOFLAGS="${GOFLAGS:-} -count=1" $GREMLINS unleash --timeout-coefficient 10 -o "$OUT" .
 
 survivors=$(jq -r '
   .files[] | .file_name as $f | .mutations[]
