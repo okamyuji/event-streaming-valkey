@@ -11,10 +11,11 @@ jobs:
   security:
     uses: okamyuji/reusable-workflows/.github/workflows/security-scan.yml@v1
 
-  # ローカルの make ci と同じ検査を通す。Go の版は go.mod から決まる。
+  # ローカルの make ci と同じ検査を通す。Go は 1.27 系の最新パッチを使う。
   ci:
     uses: okamyuji/reusable-workflows/.github/workflows/go-ci.yml@v1
     with:
+      go-version: "1.27.x"
       test-command: "make ci"
 
   mutation:
